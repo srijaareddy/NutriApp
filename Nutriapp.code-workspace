@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../Nutriapp"
+		},
+		{
+			"name": "nutriapp-1",
+			"path": "."
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "nutriapp-1"
+	}
+}
