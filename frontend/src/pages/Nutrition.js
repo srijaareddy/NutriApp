@@ -22,16 +22,42 @@ import {
   IconButton,
   Chip,
   Autocomplete,
-  CircularProgress
+  CircularProgress,
+  Avatar
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import LocalDiningIcon from '@mui/icons-material/LocalDining';
+import FastfoodIcon from '@mui/icons-material/Fastfood';
+import EmojiFoodBeverageIcon from '@mui/icons-material/EmojiFoodBeverage';
+import BrunchDiningIcon from '@mui/icons-material/BrunchDining';
+import LunchDiningIcon from '@mui/icons-material/LunchDining';
+import DinnerDiningIcon from '@mui/icons-material/DinnerDining';
 
-// Import food data
 import foodData from '../foodData.json';
+
+const mealTypeIcons = {
+  Breakfast: <BrunchDiningIcon />,
+  Lunch: <LunchDiningIcon />,
+  Dinner: <DinnerDiningIcon />,
+  Snacks: <FastfoodIcon />,
+  Juices: <EmojiFoodBeverageIcon />
+};
+
+const THEME_COLORS = {
+  primary: '#006D77',    // Dark turquoise
+  secondary: '#083D3F',  // Deeper turquoise
+  accent: '#E29578',     // Coral accent
+  card1: 'linear-gradient(135deg, rgba(0, 109, 119, 0.95) 0%, rgba(8, 61, 63, 0.95) 100%)',
+  card2: 'linear-gradient(135deg, rgba(8, 61, 63, 0.95) 0%, rgba(0, 109, 119, 0.95) 100%)',
+  card3: 'linear-gradient(135deg, rgba(0, 91, 99, 0.95) 0%, rgba(8, 61, 63, 0.95) 100%)',
+  card4: 'linear-gradient(135deg, rgba(226, 149, 120, 0.95) 0%, rgba(198, 130, 105, 0.95) 100%)',
+  mealCard: 'linear-gradient(135deg, rgba(0, 109, 119, 0.9) 0%, rgba(8, 61, 63, 0.9) 100%)',
+  text: '#E0E0E0',       // Light gray for text
+  subtext: '#B0B0B0'     // Slightly darker gray for secondary text
+};
 
 function Nutrition() {
   const [height, setHeight] = useState('');
@@ -54,7 +80,6 @@ function Nutrition() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Load food options on component mount
   useEffect(() => {
     const options = foodData.map(food => food["Dish Name"]);
     setFoodOptions(options);
@@ -88,7 +113,6 @@ function Nutrition() {
     const bmiValue = parseFloat(bmi);
     const weightKg = parseFloat(weight);
     
-    // Base recommendations on BMI category
     if (bmiValue < 18.5) {
       if (calories < 2000) suggestions.push("Increase daily calorie intake to at least 2000-2500 calories for healthy weight gain");
       if (protein < 1.6 * weightKg) suggestions.push(`Increase protein intake to at least ${Math.round(1.6 * weightKg)}g daily to support muscle growth`);
@@ -138,7 +162,6 @@ function Nutrition() {
     setError(null);
 
     try {
-      // Call our new endpoint to calculate dish nutrition
       const response = await fetch('http://localhost:5000/api/calculate-dish-nutrition', {
         method: 'POST',
         headers: {
@@ -155,14 +178,13 @@ function Nutrition() {
 
       const data = await response.json();
       
-      // Add the food to the meal plan with ingredients breakdown
       const nutritionValues = {
         calories: data.nutrition.calories,
         protein: data.nutrition.protein,
         carbs: data.nutrition.carbohydrates,
         fat: data.nutrition.fat,
         fiber: data.nutrition.fiber,
-        ingredients: data.ingredients // Store ingredients for detailed view
+        ingredients: data.ingredients 
       };
 
       setMeals(prev => ({
@@ -175,7 +197,6 @@ function Nutrition() {
         }]
       }));
 
-      // Analyze the updated meal plan
       analyzeMealPlan([...Object.values(meals).flat(), { 
         foodItem: data.dishName, 
         quantity: 1, 
@@ -197,13 +218,11 @@ function Nutrition() {
     e.preventDefault();
     if (!foodItem || !quantity) return;
 
-    // If it's a food from our database, use the API to analyze it
     if (foodOptions.includes(foodItem)) {
       analyzeFoodNutrition();
       return;
     }
 
-    // For manual food entries, use the existing logic
     const nutritionValues = {
       calories: Math.round(quantity * 2),
       protein: Math.round(quantity * 0.1),
@@ -267,7 +286,6 @@ function Nutrition() {
       analysis.fiber += meal.fiber || 0;
     });
 
-    // Generate dynamic recommendations
     const suggestions = generateRecommendations(analysis, bmiResult.bmi);
 
     setNutritionAnalysis({
@@ -276,7 +294,6 @@ function Nutrition() {
     });
   };
 
-  // Add a function to render the nutrition chart
   const renderNutritionChart = (nutrition) => {
     if (!nutrition) return null;
 
@@ -314,11 +331,24 @@ function Nutrition() {
 
   return (
     <Box sx={{ 
-      backgroundColor: '#f5f5f5', 
       minHeight: '100vh',
-      background: 'linear-gradient(135deg,rgb(65, 72, 78) 0%,rgb(50, 84, 93) 100%)',
+      background: '(30,30,30,0.9)',
       pt: 4,
-      pb: 6
+      pb: 6,
+      position: 'relative',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: 'url(https://images.unsplash.com/photo-1490818387583-1baba5e638af?auto=format&fit=crop&q=80)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        opacity: 0.08,
+        zIndex: -1
+      }
     }}>
       <Container maxWidth="lg">
         <Typography 
@@ -326,12 +356,15 @@ function Nutrition() {
           component="h1" 
           gutterBottom 
           sx={{ 
-            color: '#fff', 
+            color: THEME_COLORS.text, 
             textAlign: 'center', 
             mb: 4,
-            textShadow: '2px 2px 4px rgba(0,0,0,0.2)'
+            textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
+            fontWeight: 'bold',
+            letterSpacing: '1px'
           }}
         >
+          <LocalDiningIcon sx={{ fontSize: 40, mr: 2, color: THEME_COLORS.accent }} />
           Nutrition Analysis
         </Typography>
 
@@ -342,19 +375,26 @@ function Nutrition() {
               elevation={3} 
               sx={{ 
                 p: 3, 
-                borderRadius: 2,
-                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: 3,
+                background: THEME_COLORS.card1,
                 backdropFilter: 'blur(10px)',
-                transition: 'transform 0.2s ease-in-out',
+                transition: 'all 0.3s ease',
+                border: '1px solid rgba(255,255,255,0.1)',
                 '&:hover': {
-                  transform: 'translateY(-5px)'
+                  transform: 'translateY(-5px)',
+                  boxShadow: '0 8px 20px rgba(0,0,0,0.3)'
                 }
               }}
             >
-              <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CalculateIcon color="primary" />
-                BMI Calculator
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar sx={{ bgcolor: THEME_COLORS.accent, mr: 2 }}>
+                  <CalculateIcon />
+                </Avatar>
+                <Typography variant="h5" fontWeight="bold" color={THEME_COLORS.text}>
+                  BMI Calculator
+                </Typography>
+              </Box>
+              
               <Box component="form" sx={{ mt: 2 }}>
                 <TextField
                   fullWidth
@@ -364,6 +404,23 @@ function Nutrition() {
                   onChange={(e) => setHeight(e.target.value)}
                   margin="normal"
                   variant="outlined"
+                  InputProps={{
+                    sx: {
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        '& fieldset': {
+                          borderColor: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'rgba(255, 255, 255, 0.2)'
+                        }
+                      },
+                      '& .MuiInputLabel-root, & .MuiOutlinedInput-input': {
+                        color: THEME_COLORS.text
+                      }
+                    }
+                  }}
                 />
                 <TextField
                   fullWidth
@@ -373,21 +430,52 @@ function Nutrition() {
                   onChange={(e) => setWeight(e.target.value)}
                   margin="normal"
                   variant="outlined"
+                  InputProps={{
+                    sx: {
+                      '& .MuiOutlinedInput-root': {
+                        borderRadius: 2,
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                        '& fieldset': {
+                          borderColor: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        '&:hover fieldset': {
+                          borderColor: 'rgba(255, 255, 255, 0.2)'
+                        }
+                      },
+                      '& .MuiInputLabel-root, & .MuiOutlinedInput-input': {
+                        color: THEME_COLORS.text
+                      }
+                    }
+                  }}
                 />
                 <Button
                   variant="contained"
-                  color="primary"
                   onClick={calculateBMI}
                   fullWidth
-                  sx={{ mt: 2 }}
+                  sx={{ 
+                    mt: 2,
+                    borderRadius: 2,
+                    py: 1.5,
+                    background: THEME_COLORS.accent,
+                    '&:hover': {
+                      background: THEME_COLORS.primary
+                    }
+                  }}
                   startIcon={<CalculateIcon />}
                 >
                   Calculate BMI
                 </Button>
+                
                 {bmiResult && (
-                  <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                    <Typography variant="h6" gutterBottom>
-                      Your BMI: {bmiResult.bmi}
+                  <Box sx={{ 
+                    mt: 3,
+                    p: 3,
+                    borderRadius: 2,
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                  }}>
+                    <Typography variant="h4" gutterBottom align="center" color="primary">
+                      {bmiResult.bmi}
                     </Typography>
                     <Chip
                       label={bmiResult.category}
@@ -398,7 +486,11 @@ function Nutrition() {
                           ? 'warning'
                           : 'error'
                       }
-                      sx={{ mt: 1 }}
+                      sx={{ 
+                        width: '100%',
+                        py: 2,
+                        fontSize: '1.1rem'
+                      }}
                     />
                   </Box>
                 )}
@@ -406,174 +498,300 @@ function Nutrition() {
             </Paper>
           </Grid>
 
-          {/* Diet Plan Card */}
+          {/* Meal Planner Card */}
           <Grid item xs={12} md={6}>
-            <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-              <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <RestaurantIcon color="primary" />
-                Diet Plan for the Day
-              </Typography>
-              <Box component="form" onSubmit={handleAddFood} sx={{ mt: 2 }}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Meal Type</InputLabel>
-                  <Select
-                    value={mealType}
-                    onChange={(e) => setMealType(e.target.value)}
-                    label="Meal Type"
-                  >
-                    <MenuItem value="Breakfast">Breakfast</MenuItem>
-                    <MenuItem value="Lunch">Lunch</MenuItem>
-                    <MenuItem value="Dinner">Dinner</MenuItem>
-                    <MenuItem value="Snacks">Snacks</MenuItem>
-                    <MenuItem value="Juices">Juices</MenuItem>
-                  </Select>
-                </FormControl>
-                
-                {/* Food Selection with Autocomplete */}
-                <Autocomplete
-                  options={foodOptions}
-                  value={selectedFood}
-                  onChange={handleFoodSelect}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      label="Select Food from Database"
-                      margin="normal"
-                      fullWidth
-                    />
-                  )}
-                  renderOption={(props, option) => (
-                    <li {...props}>
-                      <RestaurantIcon sx={{ mr: 1 }} />
-                      {option}
-                    </li>
-                  )}
-                />
-                
-                {/* Manual Food Entry */}
-                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
-                  Or enter food manually:
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 3,
+                borderRadius: 3,
+                background: THEME_COLORS.card2,
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: 'translateY(-5px)',
+                  boxShadow: '0 8px 20px rgba(0,0,0,0.2)'
+                }
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar sx={{ bgcolor: THEME_COLORS.secondary, mr: 2 }}>
+                  <RestaurantIcon />
+                </Avatar>
+                <Typography variant="h5" fontWeight="bold" color={THEME_COLORS.text}>
+                  Meal Planner
                 </Typography>
-                <TextField
-                  fullWidth
-                  label="Food Item"
-                  value={foodItem}
-                  onChange={(e) => setFoodItem(e.target.value)}
-                  margin="normal"
-                />
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={8}>
-                    <TextField
-                      fullWidth
-                      label="Quantity"
-                      type="number"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                    />
-                  </Grid>
-                  <Grid item xs={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Unit</InputLabel>
-                      <Select
-                        value={unit}
-                        onChange={(e) => setUnit(e.target.value)}
-                        label="Unit"
-                      >
-                        <MenuItem value="grams">grams</MenuItem>
-                        <MenuItem value="ml">ml</MenuItem>
-                        <MenuItem value="pieces">pieces</MenuItem>
-                        <MenuItem value="serving">serving</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                </Grid>
-                
-                {error && (
-                  <Alert severity="error" sx={{ mt: 2 }}>
-                    {error}
-                  </Alert>
-                )}
-                
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  fullWidth
-                  sx={{ mt: 2 }}
-                  startIcon={<AddCircleOutlineIcon />}
-                  disabled={loading}
-                >
-                  {loading ? <CircularProgress size={24} /> : 'Add Food Item'}
-                </Button>
               </Box>
+
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Select Meal</InputLabel>
+                <Select
+                  value={mealType}
+                  onChange={(e) => setMealType(e.target.value)}
+                  label="Select Meal"
+                  sx={{ 
+                    borderRadius: 2,
+                    '& .MuiSelect-select': { display: 'flex', alignItems: 'center' }
+                  }}
+                >
+                  {Object.keys(meals).map((meal) => (
+                    <MenuItem value={meal} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {mealTypeIcons[meal]}
+                      {meal}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Autocomplete
+                options={foodOptions}
+                value={selectedFood}
+                onChange={handleFoodSelect}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Search Food Database"
+                    margin="normal"
+                    fullWidth
+                    variant="outlined"
+                    InputProps={{
+                      ...params.InputProps,
+                      sx: { borderRadius: 2 }
+                    }}
+                  />
+                )}
+                renderOption={(props, option) => (
+                  <li {...props} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <RestaurantIcon color="primary" />
+                    {option}
+                  </li>
+                )}
+              />
+
+              <Grid container spacing={2} sx={{ mt: 1 }}>
+                <Grid item xs={8}>
+                  <TextField
+                    fullWidth
+                    label="Quantity"
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    InputProps={{
+                      sx: { borderRadius: 2 }
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <FormControl fullWidth>
+                    <InputLabel>Unit</InputLabel>
+                    <Select
+                      value={unit}
+                      onChange={(e) => setUnit(e.target.value)}
+                      label="Unit"
+                      sx={{ borderRadius: 2 }}
+                    >
+                      <MenuItem value="grams">grams</MenuItem>
+                      <MenuItem value="ml">ml</MenuItem>
+                      <MenuItem value="pieces">pieces</MenuItem>
+                      <MenuItem value="serving">serving</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+              </Grid>
+
+              <Button
+                onClick={handleAddFood}
+                variant="contained"
+                fullWidth
+                sx={{ 
+                  mt: 3,
+                  borderRadius: 2,
+                  py: 1.5,
+                  background: THEME_COLORS.secondary,
+                  '&:hover': {
+                    background: THEME_COLORS.primary
+                  }
+                }}
+                startIcon={<AddCircleOutlineIcon />}
+              >
+                Add Food
+              </Button>
+
+              {error && (
+                <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+                  {error}
+                </Alert>
+              )}
             </Paper>
           </Grid>
 
-          {/* Meal List */}
+          {/* Meal List and Analysis */}
           <Grid item xs={12}>
-            <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-              <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <LocalDiningIcon color="primary" />
-                Today's Meals
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                p: 3,
+                borderRadius: 3,
+                background: THEME_COLORS.card3,
+                backdropFilter: 'blur(10px)'
+              }}
+            >
+              <Typography variant="h5" gutterBottom fontWeight="bold" color={THEME_COLORS.text}>
+                Your Meal Plan
               </Typography>
-              {Object.entries(meals).map(([type, items]) => (
-                items.length > 0 && (
-                  <Box key={type} sx={{ mb: 3 }}>
-                    <Typography variant="h6" color="primary" gutterBottom>
-                      {type}
-                    </Typography>
-                    <List>
-                      {items.map((item, index) => (
-                        <React.Fragment key={index}>
-                          <ListItem
-                            secondaryAction={
-                              <IconButton
-                                edge="end"
-                                aria-label="delete"
-                                onClick={() => handleDeleteFood(type, index)}
+              
+              <Grid container spacing={3}>
+                {Object.entries(meals).map(([type, items]) => (
+                  <Grid item xs={12} md={6} key={type}>
+                    <Card 
+                      elevation={2}
+                      sx={{ 
+                        mb: 2,
+                        borderRadius: 2,
+                        background: THEME_COLORS.mealCard
+                      }}
+                    >
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                          <Avatar sx={{ bgcolor: THEME_COLORS.secondary, mr: 2 }}>
+                            {mealTypeIcons[type]}
+                          </Avatar>
+                          <Typography variant="h6" fontWeight="bold" color={THEME_COLORS.text}>
+                            {type}
+                          </Typography>
+                        </Box>
+                        
+                        <List>
+                          {items.map((item, index) => (
+                            <React.Fragment key={index}>
+                              <ListItem
+                                secondaryAction={
+                                  <IconButton 
+                                    edge="end" 
+                                    onClick={() => handleDeleteFood(type, index)}
+                                    sx={{ color: THEME_COLORS.accent }}
+                                  >
+                                    <DeleteIcon />
+                                  </IconButton>
+                                }
                               >
-                                <DeleteIcon />
-                              </IconButton>
-                            }
-                          >
-                            <ListItemText
-                              primary={item.foodItem}
-                              secondary={`${item.quantity} ${item.unit} | Calories: ${item.calories} | Protein: ${item.protein}g | Carbs: ${item.carbs}g | Fat: ${item.fat}g | Fiber: ${item.fiber}g`}
+                                <ListItemText
+                                  primary={item.foodItem}
+                                  secondary={`${item.quantity} ${item.unit} - ${item.calories} kcal`}
+                                />
+                              </ListItem>
+                              {index < items.length - 1 && <Divider />}
+                            </React.Fragment>
+                          ))}
+                        </List>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+
+              {/* Nutrition Analysis */}
+              {nutritionAnalysis && (
+                <Box sx={{ mt: 4 }}>
+                  <Typography variant="h5" gutterBottom fontWeight="bold" color={THEME_COLORS.text}>
+                    Nutrition Analysis
+                  </Typography>
+                  
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                      <Card 
+                        elevation={2}
+                        sx={{ 
+                          p: 3,
+                          borderRadius: 2,
+                          background: 'rgba(255, 255, 255, 0.9)'
+                        }}
+                      >
+                        {renderNutritionChart(nutritionAnalysis)}
+                      </Card>
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <Card 
+                        elevation={2}
+                        sx={{ 
+                          p: 3,
+                          borderRadius: 2,
+                          background: THEME_COLORS.card4,
+                          color: THEME_COLORS.text
+                        }}
+                      >
+                        <Typography variant="h6" gutterBottom fontWeight="bold">
+                          Daily Totals
+                        </Typography>
+                        
+                        <List>
+                          <ListItem>
+                            <ListItemText 
+                              primary="Calories"
+                              secondary={`${nutritionAnalysis.calories} kcal`}
                             />
                           </ListItem>
                           <Divider />
-                        </React.Fragment>
-                      ))}
-                    </List>
-                  </Box>
-                )
-              ))}
+                          <ListItem>
+                            <ListItemText 
+                              primary="Protein"
+                              secondary={`${nutritionAnalysis.protein}g`}
+                            />
+                          </ListItem>
+                          <Divider />
+                          <ListItem>
+                            <ListItemText 
+                              primary="Carbs"
+                              secondary={`${nutritionAnalysis.carbs}g`}
+                            />
+                          </ListItem>
+                          <Divider />
+                          <ListItem>
+                            <ListItemText 
+                              primary="Fat"
+                              secondary={`${nutritionAnalysis.fat}g`}
+                            />
+                          </ListItem>
+                          <Divider />
+                          <ListItem>
+                            <ListItemText 
+                              primary="Fiber"
+                              secondary={`${nutritionAnalysis.fiber}g`}
+                            />
+                          </ListItem>
+                        </List>
+                      </Card>
+
+                      {nutritionAnalysis.suggestions && (
+                        <Card 
+                          elevation={2}
+                          sx={{ 
+                            mt: 3,
+                            p: 3,
+                            borderRadius: 2,
+                            background: THEME_COLORS.mealCard
+                          }}
+                        >
+                          <Typography variant="h6" gutterBottom fontWeight="bold">
+                            Recommendations
+                          </Typography>
+                          
+                          <List>
+                            {nutritionAnalysis.suggestions.map((suggestion, index) => (
+                              <ListItem key={index}>
+                                <ListItemText primary={suggestion} />
+                              </ListItem>
+                            ))}
+                          </List>
+                        </Card>
+                      )}
+                    </Grid>
+                  </Grid>
+                </Box>
+              )}
             </Paper>
           </Grid>
-
-          {/* Nutrition Analysis */}
-          {nutritionAnalysis && (
-            <Grid item xs={12}>
-              <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-                <Typography variant="h5" gutterBottom>
-                  Nutrition Analysis
-                </Typography>
-                {renderNutritionChart(nutritionAnalysis)}
-                <Box sx={{ mt: 3 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Recommendations
-                  </Typography>
-                  <List>
-                    {nutritionAnalysis.suggestions.map((suggestion, index) => (
-                      <ListItem key={index}>
-                        <ListItemText primary={suggestion} />
-                      </ListItem>
-                    ))}
-                  </List>
-                </Box>
-              </Paper>
-            </Grid>
-          )}
         </Grid>
       </Container>
     </Box>

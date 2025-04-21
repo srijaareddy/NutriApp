@@ -26,12 +26,10 @@ function Profile() {
 
     console.log("Generating recommendations with:", { bmiValue, nutrition, weight, height, age, gender, activityLevel });
 
-    // Calculate BMR using Mifflin-St Jeor Equation
     const bmr = gender === 'male' 
       ? (10 * weight) + (6.25 * height) - (5 * age) + 5
       : (10 * weight) + (6.25 * height) - (5 * age) - 161;
 
-    // Activity multipliers
     const activityMultipliers = {
       sedentary: 1.2,
       light: 1.375,
@@ -40,15 +38,13 @@ function Profile() {
       veryActive: 1.9
     };
 
-    // Calculate TDEE (Total Daily Energy Expenditure)
     const tdee = bmr * activityMultipliers[activityLevel];
 
-    // Dynamic target values based on BMI and goals
     let calorieGoal = tdee;
     if (bmiValue < 18.5) {
-      calorieGoal = tdee + 500; // Caloric surplus for weight gain
+      calorieGoal = tdee + 500; 
     } else if (bmiValue >= 25) {
-      calorieGoal = tdee - 500; // Caloric deficit for weight loss
+      calorieGoal = tdee - 500;
     }
 
     console.log("Calculated goals:", { bmr, tdee, calorieGoal });
@@ -70,7 +66,6 @@ function Profile() {
 
     console.log("Nutritional goals:", { proteinGoal, fatMin, fatMax, carbMin, carbMax, fiberGoal });
 
-    // Always add general recommendations based on BMI
     if (bmiValue < 18.5) {
       recs.push("You're underweight. Focus on nutrient-dense foods and strength training.");
       recs.push(`Aim for ${Math.round(calorieGoal)} calories daily to gain weight healthily.`);
@@ -81,7 +76,6 @@ function Profile() {
       recs.push(`Your BMI is in the normal range. Aim for ${Math.round(calorieGoal)} calories daily to maintain your weight.`);
     }
 
-    // Always add calorie recommendations
     const calorieDiff = Math.abs(calories - calorieGoal);
     if (calorieDiff > 200) {
       if (calories < calorieGoal) {
@@ -93,7 +87,6 @@ function Profile() {
       recs.push(`Your calorie intake is close to the recommended ${Math.round(calorieGoal)} calories.`);
     }
 
-    // Always add protein recommendations
     if (protein < proteinGoal * 0.8) {
       recs.push(`Increase protein intake to ${Math.round(proteinGoal)}g daily. Good sources: lean meats, fish, eggs, legumes.`);
     } else if (protein > proteinGoal * 1.2) {
@@ -102,7 +95,6 @@ function Profile() {
       recs.push(`Your protein intake is within the recommended range of ${Math.round(proteinGoal * 0.8)}-${Math.round(proteinGoal * 1.2)}g daily.`);
     }
 
-    // Always add fat recommendations
     if (fat < fatMin) {
       recs.push(`Increase healthy fat intake to at least ${Math.round(fatMin)}g daily. Sources: avocados, nuts, olive oil.`);
     } else if (fat > fatMax) {
@@ -111,7 +103,6 @@ function Profile() {
       recs.push(`Your fat intake is within the recommended range of ${Math.round(fatMin)}-${Math.round(fatMax)}g daily.`);
     }
 
-    // Always add carb recommendations
     if (carbs < carbMin) {
       recs.push(`Increase complex carbohydrate intake to at least ${Math.round(carbMin)}g daily. Sources: whole grains, fruits, vegetables.`);
     } else if (carbs > carbMax) {
@@ -120,14 +111,12 @@ function Profile() {
       recs.push(`Your carbohydrate intake is within the recommended range of ${Math.round(carbMin)}-${Math.round(carbMax)}g daily.`);
     }
 
-    // Always add fiber recommendations
     if (fiber < fiberGoal * 0.8) {
       recs.push(`Increase fiber intake to ${fiberGoal}g daily. Sources: vegetables, fruits, whole grains, legumes.`);
     } else {
       recs.push(`Your fiber intake is good. Aim to maintain at least ${fiberGoal}g daily.`);
     }
 
-    // Always add activity level recommendations
     if (activityLevel === 'sedentary') {
       recs.push("Consider increasing physical activity. Aim for at least 150 minutes of moderate exercise weekly.");
     } else if (activityLevel === 'light') {
@@ -149,7 +138,6 @@ function Profile() {
       console.log("Calculated BMI:", bmiValue);
       setBmi(bmiValue);
       
-      // Generate recommendations with the new BMI value
       if (nutritionData) {
         console.log("Generating recommendations with new BMI:", bmiValue);
         generateRecommendations(bmiValue, nutritionData);
@@ -159,7 +147,6 @@ function Profile() {
     }
   }, [user, nutritionData, generateRecommendations]);
 
-  // Load user data from localStorage
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
@@ -172,7 +159,6 @@ function Profile() {
     }
   }, [navigate]);
 
-  // Calculate BMI when user data is loaded
   useEffect(() => {
     if (user) {
       console.log("User data loaded, calculating BMI");
@@ -180,7 +166,6 @@ function Profile() {
     }
   }, [user, calculateBMI]);
 
-  // Update recommendations when nutrition data changes
   useEffect(() => {
     if (bmi && nutritionData) {
       console.log("Updating recommendations based on BMI and nutrition data");
@@ -196,7 +181,6 @@ function Profile() {
     };
     setNutritionData(updatedNutrition);
     
-    // Ensure we have a valid BMI value before generating recommendations
     if (bmi) {
       console.log("Updating recommendations with new nutrition data:", updatedNutrition);
       generateRecommendations(bmi, updatedNutrition);

@@ -6,17 +6,14 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 
-// Import models
 const Ingredient = require('./models/Ingredient');
 const Dish = require('./models/Dish');
 
 const app = express();
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nutritionDB', {
   useNewUrlParser: true,
   useUnifiedTopology: true
@@ -26,10 +23,8 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nutrition
   console.error('MongoDB connection error:', err);
 });
 
-// In-memory user storage (replace with a database in production)
 const users = [];
 
-// Middleware to verify JWT token
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -47,17 +42,14 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK' });
 });
 
-// Calculate nutritional values for a dish based on its ingredients
 app.post('/api/calculate-dish-nutrition', async (req, res) => {
   try {
     const { dishName } = req.body;
     
-    // Find the dish in the dishes collection
     const dish = await Dish.findOne({ 
       'Dish Name': { $regex: new RegExp(dishName, 'i') } 
     });
@@ -66,7 +58,6 @@ app.post('/api/calculate-dish-nutrition', async (req, res) => {
       return res.status(404).json({ message: 'Dish not found' });
     }
 
-    // Parse ingredients string into array of ingredients with quantities
     const ingredientsList = dish.Ingredients.split(',').map(ing => {
       const match = ing.trim().match(/(.*?)\s*\(([^)]+)\)/);
       if (match) {
@@ -78,7 +69,6 @@ app.post('/api/calculate-dish-nutrition', async (req, res) => {
       return { name: ing.trim(), quantity: '1' };
     });
 
-    // Calculate total nutrition
     let totalNutrition = {
       calories: 0,
       protein: 0,
@@ -87,15 +77,12 @@ app.post('/api/calculate-dish-nutrition', async (req, res) => {
       fiber: 0
     };
 
-    // Look up each ingredient in MongoDB and calculate nutrition
     for (const ing of ingredientsList) {
-      // Try to find the ingredient in the database
       const ingredient = await Ingredient.findOne({ 
         Ingredient: { $regex: new RegExp(ing.name, 'i') } 
       });
       
       if (ingredient) {
-        // Extract numeric value from quantity (e.g., "500g" -> 500)
         let quantity = 1;
         const quantityStr = ing.quantity.toLowerCase();
         
@@ -163,7 +150,6 @@ app.post('/api/calculate-dish-nutrition', async (req, res) => {
   }
 });
 
-// BMI Calculation endpoint
 app.post('/api/calculate-bmi', (req, res) => {
   const { height, weight } = req.body;
   if (!height || !weight) {
@@ -182,7 +168,6 @@ app.post('/api/calculate-bmi', (req, res) => {
   res.json({ bmi: bmi.toFixed(2), category });
 });
 
-// Meal Plan Analysis endpoint
 app.post('/api/analyze-meal-plan', (req, res) => {
   const { meals, bmiCategory } = req.body;
   if (!meals || !Array.isArray(meals)) {
@@ -204,7 +189,6 @@ app.post('/api/analyze-meal-plan', (req, res) => {
     analysis.fat += meal.fat || 0;
   });
 
-  // Dynamic Suggestions
   if (bmiCategory === 'Underweight') {
     if (analysis.totalCalories < 2000) {
       analysis.suggestions.push('Increase your calorie intake to reach a healthy weight.');
@@ -241,12 +225,10 @@ app.post('/api/analyze-meal-plan', (req, res) => {
   res.json(analysis);
 });
 
-// New endpoint to analyze a food item
 app.post('/api/analyze-food', async (req, res) => {
   try {
     const { dishName } = req.body;
     
-    // Find the food in the database
     const food = await Food.findOne({ 
       dishName: { $regex: new RegExp(dishName, 'i') } 
     });
@@ -255,16 +237,12 @@ app.post('/api/analyze-food', async (req, res) => {
       return res.status(404).json({ error: 'Food not found' });
     }
 
-    // Split ingredients string into array
     const ingredientsList = food.ingredients.split(',').map(i => i.trim());
     
-    // Calculate nutrition
     const nutrition = await calculateNutrition(ingredientsList);
     
-    // Get BMI category from user profile (you'll need to implement this)
     const bmiCategory = req.body.bmiCategory || 'Normal weight';
     
-    // Generate recommendations based on nutrition and BMI
     const recommendations = generateRecommendations(nutrition, bmiCategory);
     
     res.json({
@@ -279,7 +257,6 @@ app.post('/api/analyze-food', async (req, res) => {
   }
 });
 
-// New endpoint to analyze multiple food items
 app.post('/api/analyze-meals', async (req, res) => {
   try {
     const { meals, bmiCategory } = req.body;
@@ -308,7 +285,6 @@ app.post('/api/analyze-meals', async (req, res) => {
         const ingredientsList = food.ingredients.split(',').map(i => i.trim());
         const nutrition = await calculateNutrition(ingredientsList);
         
-        // Add to total nutrition
         Object.keys(totalNutrition).forEach(key => {
           totalNutrition[key] += nutrition[key];
         });
@@ -321,7 +297,6 @@ app.post('/api/analyze-meals', async (req, res) => {
       }
     }
 
-    // Generate recommendations based on total nutrition and BMI
     const recommendations = generateRecommendations(totalNutrition, bmiCategory);
 
     res.json({
@@ -335,28 +310,23 @@ app.post('/api/analyze-meals', async (req, res) => {
   }
 });
 
-// Helper function to generate recommendations
 function generateRecommendations(nutrition, bmiCategory) {
   const recommendations = [];
 
-  // Protein recommendations
   if (nutrition.protein < 50) {
     recommendations.push('Consider adding more protein-rich foods to your diet.');
   } else if (nutrition.protein > 100) {
     recommendations.push('Your protein intake is quite high. Make sure this aligns with your fitness goals.');
   }
 
-  // Fat recommendations
   if (nutrition.fat > 70) {
     recommendations.push('Your fat intake is high. Consider reducing high-fat foods.');
   }
 
-  // Carbohydrate recommendations
   if (nutrition.carbohydrates > 300) {
     recommendations.push('Your carbohydrate intake is high. Consider balancing with more protein and healthy fats.');
   }
 
-  // BMI-specific recommendations
   if (bmiCategory === 'Underweight') {
     if (nutrition.calories < 2000) {
       recommendations.push('Increase your calorie intake to reach a healthy weight.');
@@ -370,12 +340,10 @@ function generateRecommendations(nutrition, bmiCategory) {
   return recommendations;
 }
 
-// Function to generate dynamic recommendations based on nutrition and BMI
 function generateDynamicRecommendations(nutrition, bmiCategory) {
   const recommendations = [];
   const { calories, protein, carbohydrates, fat, fiber } = nutrition;
   
-  // BMI-based recommendations
   if (bmiCategory === 'Underweight') {
     if (calories < 500) {
       recommendations.push('This dish is relatively low in calories. Consider adding more calorie-dense ingredients for weight gain.');
@@ -392,7 +360,6 @@ function generateDynamicRecommendations(nutrition, bmiCategory) {
     }
   }
   
-  // General nutrition recommendations
   if (protein < 10) {
     recommendations.push('This dish is low in protein. Consider adding protein-rich ingredients like meat, fish, eggs, or legumes.');
   }
@@ -405,7 +372,6 @@ function generateDynamicRecommendations(nutrition, bmiCategory) {
     recommendations.push('This dish is low in fiber. Consider adding more vegetables or whole grains for better digestive health.');
   }
   
-  // If no specific recommendations, add a general one
   if (recommendations.length === 0) {
     recommendations.push('This dish appears to be nutritionally balanced. Enjoy it as part of a varied diet.');
   }
@@ -413,7 +379,6 @@ function generateDynamicRecommendations(nutrition, bmiCategory) {
   return recommendations;
 }
 
-// Signup route
 app.post('/api/signup', [
   body('email').isEmail(),
   body('password').isLength({ min: 6 }),
@@ -428,15 +393,12 @@ app.post('/api/signup', [
 
   const { email, password, name, height, weight } = req.body;
 
-  // Check if user already exists
   if (users.find(u => u.email === email)) {
     return res.status(400).json({ message: 'User already exists' });
   }
 
-  // Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  // Create new user
   const user = {
     id: users.length + 1,
     email,
@@ -448,15 +410,12 @@ app.post('/api/signup', [
 
   users.push(user);
 
-  // Generate token
   const token = jwt.sign({ id: user.id }, 'your-secret-key', { expiresIn: '24h' });
 
-  // Return user data (excluding password) and token
   const { password: _, ...userData } = user;
   res.status(201).json({ user: userData, token });
 });
 
-// Login route
 app.post('/api/login', [
   body('email').isEmail(),
   body('password').notEmpty()
@@ -468,27 +427,22 @@ app.post('/api/login', [
 
   const { email, password } = req.body;
 
-  // Find user
   const user = users.find(u => u.email === email);
   if (!user) {
     return res.status(400).json({ message: 'Invalid credentials' });
   }
 
-  // Check password
   const validPassword = await bcrypt.compare(password, user.password);
   if (!validPassword) {
     return res.status(400).json({ message: 'Invalid credentials' });
   }
 
-  // Generate token
   const token = jwt.sign({ id: user.id }, 'your-secret-key', { expiresIn: '24h' });
 
-  // Return user data (excluding password) and token
   const { password: _, ...userData } = user;
   res.json({ user: userData, token });
 });
 
-// Protected route example
 app.get('/api/profile', authenticateToken, (req, res) => {
   const user = users.find(u => u.id === req.user.id);
   if (!user) {
@@ -499,7 +453,6 @@ app.get('/api/profile', authenticateToken, (req, res) => {
   res.json(userData);
 });
 
-// Update user profile
 app.put('/api/profile', authenticateToken, [
   body('height').optional().isFloat({ min: 0 }),
   body('weight').optional().isFloat({ min: 0 })
@@ -514,7 +467,6 @@ app.put('/api/profile', authenticateToken, [
     return res.status(404).json({ message: 'User not found' });
   }
 
-  // Update user data
   Object.assign(user, req.body);
 
   const { password, ...userData } = user;
