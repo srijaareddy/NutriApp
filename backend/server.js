@@ -6,6 +6,10 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 
+// Import models
+const Ingredient = require('./models/Ingredient');
+const Dish = require('./models/Dish');
+
 const app = express();
 
 // Middleware
@@ -13,9 +17,13 @@ app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nutriapp', {
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/nutritionDB', {
   useNewUrlParser: true,
   useUnifiedTopology: true
+}).then(() => {
+  console.log('Connected to MongoDB');
+}).catch(err => {
+  console.error('MongoDB connection error:', err);
 });
 
 // In-memory user storage (replace with a database in production)
@@ -42,6 +50,117 @@ const authenticateToken = (req, res, next) => {
 // Routes
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK' });
+});
+
+// Calculate nutritional values for a dish based on its ingredients
+app.post('/api/calculate-dish-nutrition', async (req, res) => {
+  try {
+    const { dishName } = req.body;
+    
+    // Find the dish in the dishes collection
+    const dish = await Dish.findOne({ 
+      'Dish Name': { $regex: new RegExp(dishName, 'i') } 
+    });
+    
+    if (!dish) {
+      return res.status(404).json({ message: 'Dish not found' });
+    }
+
+    // Parse ingredients string into array of ingredients with quantities
+    const ingredientsList = dish.Ingredients.split(',').map(ing => {
+      const match = ing.trim().match(/(.*?)\s*\(([^)]+)\)/);
+      if (match) {
+        return {
+          name: match[1].trim(),
+          quantity: match[2].trim()
+        };
+      }
+      return { name: ing.trim(), quantity: '1' };
+    });
+
+    // Calculate total nutrition
+    let totalNutrition = {
+      calories: 0,
+      protein: 0,
+      carbohydrates: 0,
+      fat: 0,
+      fiber: 0
+    };
+
+    // Look up each ingredient in MongoDB and calculate nutrition
+    for (const ing of ingredientsList) {
+      // Try to find the ingredient in the database
+      const ingredient = await Ingredient.findOne({ 
+        Ingredient: { $regex: new RegExp(ing.name, 'i') } 
+      });
+      
+      if (ingredient) {
+        // Extract numeric value from quantity (e.g., "500g" -> 500)
+        let quantity = 1;
+        const quantityStr = ing.quantity.toLowerCase();
+        
+        if (quantityStr.includes('g')) {
+          const match = quantityStr.match(/(\d+(\.\d+)?)/);
+          if (match) quantity = parseFloat(match[1]);
+        } else if (quantityStr.includes('cup')) {
+          const match = quantityStr.match(/(\d+(\.\d+)?)/);
+          if (match) quantity = parseFloat(match[1]) * 240; // 1 cup = 240g
+        } else if (quantityStr.includes('tbsp')) {
+          const match = quantityStr.match(/(\d+(\.\d+)?)/);
+          if (match) quantity = parseFloat(match[1]) * 15; // 1 tbsp = 15g
+        } else if (quantityStr.includes('tsp')) {
+          const match = quantityStr.match(/(\d+(\.\d+)?)/);
+          if (match) quantity = parseFloat(match[1]) * 5; // 1 tsp = 5g
+        } else if (quantityStr.includes('piece')) {
+          const match = quantityStr.match(/(\d+(\.\d+)?)/);
+          if (match) quantity = parseFloat(match[1]) * 30; // 1 piece = 30g
+        } else if (quantityStr.includes('cloves')) {
+          const match = quantityStr.match(/(\d+(\.\d+)?)/);
+          if (match) quantity = parseFloat(match[1]) * 3; // 1 clove = 3g
+        } else if (quantityStr.includes('inch')) {
+          const match = quantityStr.match(/(\d+(\.\d+)?)/);
+          if (match) quantity = parseFloat(match[1]) * 15; // 1 inch = 15g
+        } else if (quantityStr.includes('to taste')) {
+          quantity = 5; // Small amount
+        } else {
+          // Try to extract any number
+          const match = quantityStr.match(/(\d+(\.\d+)?)/);
+          if (match) quantity = parseFloat(match[1]);
+        }
+        
+        // Add to total nutrition (assuming nutritional values are per 100g)
+        const standardQuantity = ingredient['Quantity Standard (g)'] || 100;
+        const ratio = quantity / standardQuantity;
+        
+        totalNutrition.calories += (ingredient['Calories (kcal)'] || 0) * ratio;
+        totalNutrition.protein += (ingredient['Protein (g)'] || 0) * ratio;
+        totalNutrition.carbohydrates += (ingredient['Carbohydrates (g)'] || 0) * ratio;
+        totalNutrition.fat += (ingredient['Fat (g)'] || 0) * ratio;
+        totalNutrition.fiber += (ingredient['Fibre (g)'] || 0) * ratio;
+      } else {
+        console.log(`Ingredient not found: ${ing.name}`);
+      }
+    }
+
+    // Round the values
+    Object.keys(totalNutrition).forEach(key => {
+      totalNutrition[key] = Math.round(totalNutrition[key]);
+    });
+
+    // Generate dynamic recommendations based on BMI and nutrition
+    const recommendations = generateDynamicRecommendations(totalNutrition, req.body.bmiCategory || 'Normal weight');
+
+    res.json({
+      dishName: dish['Dish Name'],
+      ingredients: ingredientsList,
+      nutrition: totalNutrition,
+      recommendations
+    });
+
+  } catch (error) {
+    console.error('Error calculating dish nutrition:', error);
+    res.status(500).json({ message: 'Error calculating nutritional values' });
+  }
 });
 
 // BMI Calculation endpoint
@@ -122,6 +241,177 @@ app.post('/api/analyze-meal-plan', (req, res) => {
   res.json(analysis);
 });
 
+// New endpoint to analyze a food item
+app.post('/api/analyze-food', async (req, res) => {
+  try {
+    const { dishName } = req.body;
+    
+    // Find the food in the database
+    const food = await Food.findOne({ 
+      dishName: { $regex: new RegExp(dishName, 'i') } 
+    });
+    
+    if (!food) {
+      return res.status(404).json({ error: 'Food not found' });
+    }
+
+    // Split ingredients string into array
+    const ingredientsList = food.ingredients.split(',').map(i => i.trim());
+    
+    // Calculate nutrition
+    const nutrition = await calculateNutrition(ingredientsList);
+    
+    // Get BMI category from user profile (you'll need to implement this)
+    const bmiCategory = req.body.bmiCategory || 'Normal weight';
+    
+    // Generate recommendations based on nutrition and BMI
+    const recommendations = generateRecommendations(nutrition, bmiCategory);
+    
+    res.json({
+      dishName: food.dishName,
+      nutrition,
+      recommendations,
+      ingredients: ingredientsList
+    });
+  } catch (error) {
+    console.error('Error analyzing food:', error);
+    res.status(500).json({ error: 'Error analyzing food' });
+  }
+});
+
+// New endpoint to analyze multiple food items
+app.post('/api/analyze-meals', async (req, res) => {
+  try {
+    const { meals, bmiCategory } = req.body;
+    
+    if (!Array.isArray(meals)) {
+      return res.status(400).json({ error: 'Meals must be an array' });
+    }
+
+    let totalNutrition = {
+      protein: 0,
+      fat: 0,
+      fibre: 0,
+      carbohydrates: 0,
+      energy: 0,
+      calories: 0
+    };
+
+    const mealDetails = [];
+
+    for (const meal of meals) {
+      const food = await Food.findOne({ 
+        dishName: { $regex: new RegExp(meal.dishName, 'i') } 
+      });
+
+      if (food) {
+        const ingredientsList = food.ingredients.split(',').map(i => i.trim());
+        const nutrition = await calculateNutrition(ingredientsList);
+        
+        // Add to total nutrition
+        Object.keys(totalNutrition).forEach(key => {
+          totalNutrition[key] += nutrition[key];
+        });
+
+        mealDetails.push({
+          dishName: food.dishName,
+          nutrition,
+          ingredients: ingredientsList
+        });
+      }
+    }
+
+    // Generate recommendations based on total nutrition and BMI
+    const recommendations = generateRecommendations(totalNutrition, bmiCategory);
+
+    res.json({
+      totalNutrition,
+      mealDetails,
+      recommendations
+    });
+  } catch (error) {
+    console.error('Error analyzing meals:', error);
+    res.status(500).json({ error: 'Error analyzing meals' });
+  }
+});
+
+// Helper function to generate recommendations
+function generateRecommendations(nutrition, bmiCategory) {
+  const recommendations = [];
+
+  // Protein recommendations
+  if (nutrition.protein < 50) {
+    recommendations.push('Consider adding more protein-rich foods to your diet.');
+  } else if (nutrition.protein > 100) {
+    recommendations.push('Your protein intake is quite high. Make sure this aligns with your fitness goals.');
+  }
+
+  // Fat recommendations
+  if (nutrition.fat > 70) {
+    recommendations.push('Your fat intake is high. Consider reducing high-fat foods.');
+  }
+
+  // Carbohydrate recommendations
+  if (nutrition.carbohydrates > 300) {
+    recommendations.push('Your carbohydrate intake is high. Consider balancing with more protein and healthy fats.');
+  }
+
+  // BMI-specific recommendations
+  if (bmiCategory === 'Underweight') {
+    if (nutrition.calories < 2000) {
+      recommendations.push('Increase your calorie intake to reach a healthy weight.');
+    }
+  } else if (bmiCategory === 'Overweight' || bmiCategory === 'Obese') {
+    if (nutrition.calories > 2200) {
+      recommendations.push('Consider reducing your calorie intake to support weight loss.');
+    }
+  }
+
+  return recommendations;
+}
+
+// Function to generate dynamic recommendations based on nutrition and BMI
+function generateDynamicRecommendations(nutrition, bmiCategory) {
+  const recommendations = [];
+  const { calories, protein, carbohydrates, fat, fiber } = nutrition;
+  
+  // BMI-based recommendations
+  if (bmiCategory === 'Underweight') {
+    if (calories < 500) {
+      recommendations.push('This dish is relatively low in calories. Consider adding more calorie-dense ingredients for weight gain.');
+    }
+    if (protein < 20) {
+      recommendations.push('This dish is low in protein. Consider adding more protein-rich ingredients for muscle growth.');
+    }
+  } else if (bmiCategory === 'Overweight' || bmiCategory === 'Obese') {
+    if (calories > 800) {
+      recommendations.push('This dish is high in calories. Consider reducing portion size or choosing lower-calorie alternatives.');
+    }
+    if (fat > 30) {
+      recommendations.push('This dish is high in fat. Consider reducing oil or choosing leaner protein sources.');
+    }
+  }
+  
+  // General nutrition recommendations
+  if (protein < 10) {
+    recommendations.push('This dish is low in protein. Consider adding protein-rich ingredients like meat, fish, eggs, or legumes.');
+  }
+  
+  if (carbohydrates > 50) {
+    recommendations.push('This dish is high in carbohydrates. If you\'re watching your carb intake, consider reducing rice or bread portions.');
+  }
+  
+  if (fiber < 5) {
+    recommendations.push('This dish is low in fiber. Consider adding more vegetables or whole grains for better digestive health.');
+  }
+  
+  // If no specific recommendations, add a general one
+  if (recommendations.length === 0) {
+    recommendations.push('This dish appears to be nutritionally balanced. Enjoy it as part of a varied diet.');
+  }
+  
+  return recommendations;
+}
 
 // Signup route
 app.post('/api/signup', [

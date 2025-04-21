@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PieChart, Pie, Cell, Legend, Tooltip } from 'recharts';
 import {
   Container,
@@ -20,13 +20,18 @@ import {
   Divider,
   Alert,
   IconButton,
-  Chip
+  Chip,
+  Autocomplete,
+  CircularProgress
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import RestaurantIcon from '@mui/icons-material/Restaurant';
 import LocalDiningIcon from '@mui/icons-material/LocalDining';
+
+// Import food data
+import foodData from '../foodData.json';
 
 function Nutrition() {
   const [height, setHeight] = useState('');
@@ -44,6 +49,16 @@ function Nutrition() {
     Juices: []
   });
   const [nutritionAnalysis, setNutritionAnalysis] = useState(null);
+  const [foodOptions, setFoodOptions] = useState([]);
+  const [selectedFood, setSelectedFood] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Load food options on component mount
+  useEffect(() => {
+    const options = foodData.map(food => food["Dish Name"]);
+    setFoodOptions(options);
+  }, []);
 
   const calculateBMI = () => {
     if (!height || !weight) return;
@@ -103,10 +118,92 @@ function Nutrition() {
     return suggestions;
   };
 
+  const handleFoodSelect = (event, newValue) => {
+    setSelectedFood(newValue);
+    if (newValue) {
+      const food = foodData.find(f => f["Dish Name"] === newValue);
+      if (food) {
+        setFoodItem(food["Dish Name"]);
+      }
+    }
+  };
+
+  const analyzeFoodNutrition = async () => {
+    if (!selectedFood) {
+      setError("Please select a food item");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Call our new endpoint to calculate dish nutrition
+      const response = await fetch('http://localhost:5000/api/calculate-dish-nutrition', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dishName: selectedFood
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to analyze food');
+      }
+
+      const data = await response.json();
+      
+      // Add the food to the meal plan with ingredients breakdown
+      const nutritionValues = {
+        calories: data.nutrition.calories,
+        protein: data.nutrition.protein,
+        carbs: data.nutrition.carbohydrates,
+        fat: data.nutrition.fat,
+        fiber: data.nutrition.fiber,
+        ingredients: data.ingredients // Store ingredients for detailed view
+      };
+
+      setMeals(prev => ({
+        ...prev,
+        [mealType]: [...prev[mealType], { 
+          foodItem: data.dishName, 
+          quantity: 1, 
+          unit: 'serving',
+          ...nutritionValues
+        }]
+      }));
+
+      // Analyze the updated meal plan
+      analyzeMealPlan([...Object.values(meals).flat(), { 
+        foodItem: data.dishName, 
+        quantity: 1, 
+        unit: 'serving',
+        ...nutritionValues
+      }]);
+
+      setSelectedFood(null);
+      setFoodItem('');
+    } catch (error) {
+      console.error('Error analyzing food:', error);
+      setError('Failed to analyze food. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddFood = (e) => {
     e.preventDefault();
     if (!foodItem || !quantity) return;
 
+    // If it's a food from our database, use the API to analyze it
+    if (foodOptions.includes(foodItem)) {
+      analyzeFoodNutrition();
+      return;
+    }
+
+    // For manual food entries, use the existing logic
     const nutritionValues = {
       calories: Math.round(quantity * 2),
       protein: Math.round(quantity * 0.1),
@@ -179,14 +276,41 @@ function Nutrition() {
     });
   };
 
-  const COLORS = ['#2B6777', '#89B6C1', '#52AB98', '#C8D8E4'];
+  // Add a function to render the nutrition chart
+  const renderNutritionChart = (nutrition) => {
+    if (!nutrition) return null;
 
-  const pieData = nutritionAnalysis ? [
-    { name: 'Protein', value: nutritionAnalysis.protein },
-    { name: 'Carbs', value: nutritionAnalysis.carbs },
-    { name: 'Fat', value: nutritionAnalysis.fat },
-    { name: 'Fiber', value: nutritionAnalysis.fiber }
-  ] : [];
+    const data = [
+      { name: 'Protein', value: nutrition.protein },
+      { name: 'Carbs', value: nutrition.carbs },
+      { name: 'Fat', value: nutrition.fat },
+      { name: 'Fiber', value: nutrition.fiber }
+    ];
+
+    const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+        <PieChart width={400} height={300}>
+          <Pie
+            data={data}
+            cx={200}
+            cy={150}
+            labelLine={false}
+            outerRadius={80}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend />
+        </PieChart>
+      </Box>
+    );
+  };
 
   return (
     <Box sx={{ 
@@ -304,6 +428,32 @@ function Nutrition() {
                     <MenuItem value="Juices">Juices</MenuItem>
                   </Select>
                 </FormControl>
+                
+                {/* Food Selection with Autocomplete */}
+                <Autocomplete
+                  options={foodOptions}
+                  value={selectedFood}
+                  onChange={handleFoodSelect}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Select Food from Database"
+                      margin="normal"
+                      fullWidth
+                    />
+                  )}
+                  renderOption={(props, option) => (
+                    <li {...props}>
+                      <RestaurantIcon sx={{ mr: 1 }} />
+                      {option}
+                    </li>
+                  )}
+                />
+                
+                {/* Manual Food Entry */}
+                <Typography variant="subtitle1" sx={{ mt: 2, mb: 1 }}>
+                  Or enter food manually:
+                </Typography>
                 <TextField
                   fullWidth
                   label="Food Item"
@@ -332,10 +482,18 @@ function Nutrition() {
                         <MenuItem value="grams">grams</MenuItem>
                         <MenuItem value="ml">ml</MenuItem>
                         <MenuItem value="pieces">pieces</MenuItem>
+                        <MenuItem value="serving">serving</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>
                 </Grid>
+                
+                {error && (
+                  <Alert severity="error" sx={{ mt: 2 }}>
+                    {error}
+                  </Alert>
+                )}
+                
                 <Button
                   type="submit"
                   variant="contained"
@@ -343,8 +501,9 @@ function Nutrition() {
                   fullWidth
                   sx={{ mt: 2 }}
                   startIcon={<AddCircleOutlineIcon />}
+                  disabled={loading}
                 >
-                  Add Food Item
+                  {loading ? <CircularProgress size={24} /> : 'Add Food Item'}
                 </Button>
               </Box>
             </Paper>
@@ -399,67 +558,19 @@ function Nutrition() {
                 <Typography variant="h5" gutterBottom>
                   Nutrition Analysis
                 </Typography>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ p: 2 }}>
-                      <Typography variant="h6" gutterBottom>
-                        Daily Totals
-                      </Typography>
-                      <List>
-                        <ListItem>
-                          <ListItemText primary={`Total Calories: ${nutritionAnalysis.calories} kcal`} />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemText primary={`Protein: ${nutritionAnalysis.protein}g`} />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemText primary={`Carbohydrates: ${nutritionAnalysis.carbs}g`} />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemText primary={`Fat: ${nutritionAnalysis.fat}g`} />
-                        </ListItem>
-                        <ListItem>
-                          <ListItemText primary={`Fiber: ${nutritionAnalysis.fiber}g`} />
-                        </ListItem>
-                      </List>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ width: '100%', height: 300 }}>
-                      <PieChart width={400} height={300}>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          labelLine={false}
-                          outerRadius={80}
-                          fill="#8884d8"
-                          dataKey="value"
-                        >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                        <Legend />
-                      </PieChart>
-                    </Box>
-                  </Grid>
-                  {nutritionAnalysis.suggestions.length > 0 && (
-                    <Grid item xs={12}>
-                      <Box sx={{ mt: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                          Personalized Recommendations
-                        </Typography>
-                        {nutritionAnalysis.suggestions.map((suggestion, index) => (
-                          <Alert severity="info" key={index} sx={{ mb: 1 }}>
-                            {suggestion}
-                          </Alert>
-                        ))}
-                      </Box>
-                    </Grid>
-                  )}
-                </Grid>
+                {renderNutritionChart(nutritionAnalysis)}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Recommendations
+                  </Typography>
+                  <List>
+                    {nutritionAnalysis.suggestions.map((suggestion, index) => (
+                      <ListItem key={index}>
+                        <ListItemText primary={suggestion} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </Box>
               </Paper>
             </Grid>
           )}

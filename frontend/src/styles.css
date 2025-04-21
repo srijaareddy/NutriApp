@@ -208,12 +208,15 @@ body {
   padding: 1.5rem;
   border-radius: 0.5rem;
   box-shadow: var(--card-shadow);
+  margin-top: 1.5rem;
 }
 
 .recommendations-list {
   list-style: none;
   padding: 0;
   margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .recommendation-item {
@@ -222,6 +225,8 @@ body {
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 .recommendation-item:last-child {
@@ -232,6 +237,14 @@ body {
   content: "•";
   color: var(--primary-color);
   font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.no-recommendations {
+  padding: 1rem;
+  color: #718096;
+  text-align: center;
+  font-style: italic;
 }
 
 /* Hero Section */

@@ -1,72 +1,185 @@
-# Nutrition Dashboard
+# NutriApp - Nutrition Analysis and Diet Planning
 
-A full-stack web application that helps users track their nutrition, calculate BMI, and get personalized health suggestions based on their meal plans.
+A comprehensive nutrition tracking and analysis application that helps users track their diet, calculate BMI, and get personalized recommendations based on their nutritional intake.
 
 ## Features
 
-- BMI Calculator
-- Meal Plan Tracker
-- Nutrition Analysis Dashboard
-- Personalized Health Suggestions
-- Visual Nutrition Data Representation
+- **BMI Calculator**: Calculate your Body Mass Index and understand what it means for your health
+- **Food Database**: Access a database of foods with detailed nutritional information
+- **Ingredient Analysis**: Analyze the nutritional content of foods based on their ingredients
+- **Meal Planning**: Create daily meal plans and track your nutritional intake
+- **Personalized Recommendations**: Get tailored diet recommendations based on your BMI and nutritional goals
 
-## Prerequisites
+## Implementation Guide
+
+### Prerequisites
 
 - Node.js (v14 or higher)
-- MongoDB
+- MongoDB (v4.4 or higher)
 - npm or yarn
 
-## Installation
+### Step 1: Clone the Repository
 
-1. Clone the repository:
 ```bash
-git clone <repository-url>
-cd nutriapp
+git clone https://github.com/srijaareddy/NutriApp.git
+cd NutriApp
 ```
 
-2. Install dependencies:
+### Step 2: Install Dependencies
+
 ```bash
-npm run install-all
+# Install backend dependencies
+cd backend
+npm install
+
+# Install frontend dependencies
+cd ../frontend
+npm install
 ```
 
-3. Create a `.env` file in the backend directory:
+### Step 3: Set Up Environment Variables
+
+Create a `.env` file in the backend directory with the following content:
+
 ```
 MONGODB_URI=mongodb://localhost:27017/nutriapp
+JWT_SECRET=your-secret-key
 PORT=5000
 ```
 
-## Running the Application
+### Step 4: Import Data
 
-1. Start MongoDB service
+The application uses two main data sources:
+1. **Ingredients Database**: Contains nutritional information for various ingredients
+2. **Foods Database**: Contains recipes and ingredients for various dishes
 
-2. Start the application:
+To import this data into MongoDB:
+
 ```bash
+cd backend
+node importData.js
+```
+
+This script will:
+- Read the ingredient data from `frontend/src/database.json`
+- Read the food data from `frontend/src/foodData.json`
+- Transform the data to match our MongoDB schemas
+- Import the data into MongoDB
+
+### Step 5: Start the Backend Server
+
+```bash
+cd backend
+node server.js
+```
+
+The server will start on port 5000 (or the port specified in your .env file).
+
+### Step 6: Start the Frontend Application
+
+```bash
+cd frontend
 npm start
 ```
 
-This will start both the frontend (port 3000) and backend (port 5000) servers.
+The application will start on port 3000.
 
-## Usage
+## How to Use the Application
 
-1. Open your browser and navigate to `http://localhost:3000`
-2. Enter your height and weight to calculate your BMI
-3. Input your meal plan details (calories, protein, carbs, fat) for each meal
-4. Click "Analyze Meal Plan" to get nutrition analysis and health suggestions
+### 1. Calculate Your BMI
 
-## Technologies Used
+- Enter your height (in cm) and weight (in kg)
+- Click "Calculate BMI" to see your BMI and category
 
-- Frontend:
-  - React
-  - Material-UI
-  - Recharts
-  - Axios
+### 2. Add Foods to Your Meal Plan
 
-- Backend:
-  - Node.js
-  - Express
-  - MongoDB
-  - Mongoose
+You can add foods in two ways:
+
+#### Option 1: Select from the Database
+- Select a meal type (Breakfast, Lunch, Dinner, etc.)
+- Use the autocomplete dropdown to select a food from the database
+- Click "Add Food Item" to add it to your meal plan
+
+#### Option 2: Manual Entry
+- Select a meal type
+- Enter the food name, quantity, and unit manually
+- Click "Add Food Item" to add it to your meal plan
+
+### 3. View Nutrition Analysis
+
+After adding foods to your meal plan, the application will:
+- Calculate the total nutritional content (calories, protein, carbs, fat, fiber)
+- Display a pie chart showing the distribution of macronutrients
+- Provide personalized recommendations based on your BMI and nutritional intake
+
+### 4. Get Personalized Recommendations
+
+The application provides recommendations based on:
+- Your BMI category (Underweight, Normal weight, Overweight, Obese)
+- Your total nutritional intake
+- Your specific nutritional goals
+
+## Technical Implementation Details
+
+### Backend Architecture
+
+- **Express.js**: Web server framework
+- **MongoDB**: Database for storing food and ingredient data
+- **Mongoose**: ODM for MongoDB
+- **JWT**: Authentication
+
+### Frontend Architecture
+
+- **React**: UI library
+- **Material-UI**: Component library
+- **Recharts**: Charting library
+
+### Data Flow
+
+1. User selects a food from the database
+2. Frontend sends a request to the backend API
+3. Backend:
+   - Finds the food in the database
+   - Extracts ingredients from the food
+   - Parses each ingredient to get name and quantity
+   - Converts quantities to grams
+   - Looks up nutritional information for each ingredient
+   - Calculates total nutritional content
+   - Generates personalized recommendations
+4. Frontend displays the results to the user
+
+## Customization
+
+### Adding More Foods
+
+To add more foods to the database:
+1. Edit the `frontend/src/foodData.json` file
+2. Add new food items following the existing format
+3. Run the import script again to update the database
+
+### Adding More Ingredients
+
+To add more ingredients to the database:
+1. Edit the `frontend/src/database.json` file
+2. Add new ingredients following the existing format
+3. Run the import script again to update the database
+
+## Troubleshooting
+
+### Common Issues
+
+1. **MongoDB Connection Error**
+   - Ensure MongoDB is running
+   - Check your connection string in the .env file
+
+2. **Data Import Error**
+   - Ensure the data files exist and are properly formatted
+   - Check file paths in the importData.js script
+
+3. **API Connection Error**
+   - Ensure the backend server is running
+   - Check the API URL in the frontend code
 
 ## License
 
-MIT 
+This project is licensed under the MIT License - see the LICENSE file for details. 

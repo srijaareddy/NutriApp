@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
 import './styles.css';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -116,49 +116,53 @@ function App() {
   };
 
   return (
-    <Router>
-      {/* Navigation Bar */}
-      <nav className="navbar">
-        <Link to="/" className="navbar-brand">
-          <span className="brand-icon">🥗</span> 
-          Nutrition Tracker
-        </Link>
-        <div className="nav-links">
-          <Link to="/" className="nav-link">Home</Link>
-          <Link to="/nutrition" className="nav-link">Nutrition</Link>
-          {isLoggedIn ? (
-            <>
-              <Link to="/profile" className="nav-link">Profile</Link>
-              <button onClick={handleLogout} className="nav-link" style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-          <Link to="/login" className="nav-link">Login</Link>
-          <Link to="/signup" className="nav-link">Signup</Link>
-            </>
-          )}
-        </div>
-      </nav>
+    <BrowserRouter>
+      <div className="app">
+        {/* Navigation Bar */}
+        <nav className="navbar">
+          <Link to="/" className="navbar-brand">
+            <span className="brand-icon">🥗</span> 
+            Nutrition Tracker
+          </Link>
+          <div className="nav-links">
+            <Link to="/" className="nav-link">Home</Link>
+            <Link to="/nutrition" className="nav-link">Nutrition</Link>
+            {isLoggedIn ? (
+              <>
+                <Link to="/profile" className="nav-link">Profile</Link>
+                <button onClick={handleLogout} className="nav-link" style={{ border: 'none', background: 'none', cursor: 'pointer' }}>
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link to="/login" className="nav-link">Login</Link>
+                <Link to="/signup" className="nav-link">Signup</Link>
+              </>
+            )}
+          </div>
+        </nav>
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/nutrition" element={<Nutrition />} />
-        <Route
-          path="/profile"
-          element={
-            <PrivateRoute>
-              <Profile />
-            </PrivateRoute>
-          }
-        />
-      </Routes>
-      
-      <Footer />
-    </Router>
+        <main className="main-container">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/nutrition" element={<Nutrition />} />
+            <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <Profile />
+                </PrivateRoute>
+              }
+            />
+          </Routes>
+        </main>
+        
+        <Footer />
+      </div>
+    </BrowserRouter>
   );
 }
 
